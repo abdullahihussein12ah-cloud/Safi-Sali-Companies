@@ -1,0 +1,10 @@
+{
+  "name": "vertex-tech-technology",
+  "private": true,
+  "scripts": {
+    "dev": "concurrently --kill-others --names backend,frontend --prefix-colors blue,green \"cd Backend && node ../Backend/node_modules/nodemon/bin/nodemon.js src/server.js\" \"cd Frontend && node ../Frontend/node_modules/vite/bin/vite.js --port=3000 --host=0.0.0.0\""
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.1"
+  }
+}

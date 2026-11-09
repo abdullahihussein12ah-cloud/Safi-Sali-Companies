@@ -1,0 +1,10 @@
+{
+  "name": "Safi Sali Companies",
+  "description": "High-Velocity POS & Perpetual Financial Command Center with role-based access for Admin, Store Manager, Cashier, and Accountant.",
+  "requestFramePermissions": [
+    "camera"
+  ],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

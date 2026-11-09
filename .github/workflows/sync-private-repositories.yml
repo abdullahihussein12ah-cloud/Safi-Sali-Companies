@@ -1,0 +1,40 @@
+name: Propose updates to private repository copies
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  open-update-pull-requests:
+    if: ${{ vars.SYNC_TARGET_REPOSITORIES != '' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the source repository
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Create a token limited to selected repositories
+        id: app-token
+        uses: actions/create-github-app-token@v2
+        with:
+          app-id: ${{ secrets.SYNC_APP_ID }}
+          private-key: ${{ secrets.SYNC_APP_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+          repositories: ${{ vars.SYNC_TARGET_REPOSITORIES }}
+          permission-contents: write
+          permission-pull-requests: write
+
+      - name: Open update pull requests
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          GH_REPO_OWNER: ${{ github.repository_owner }}
+          GH_SOURCE_REPOSITORY: ${{ github.repository }}
+          GH_SOURCE_SHA: ${{ github.sha }}
+          SYNC_TARGET_REPOSITORIES: ${{ vars.SYNC_TARGET_REPOSITORIES }}
+        run: node scripts/sync-private-repositories.mjs

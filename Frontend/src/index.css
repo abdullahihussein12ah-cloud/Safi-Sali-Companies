@@ -1,0 +1,447 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@layer base {
+  body {
+    font-family: 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+  }
+  code, kbd, samp, pre {
+    font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  }
+}
+
+/* Custom smooth scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.4);
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(100, 116, 139, 0.6);
+}
+
+/* Bood-Bood (Gentle Rhythm Bounce / Movement Animation) */
+@keyframes boodBood {
+  0%, 100% {
+    transform: translateY(0) scale(1);
+  }
+  50% {
+    transform: translateY(-5px) scale(1.015);
+  }
+}
+
+.animate-boodbood {
+  animation: boodBood 2.6s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+/* Slower gentle float for cards */
+@keyframes floatSubtle {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-3.5px);
+  }
+}
+
+.animate-float-subtle {
+  animation: floatSubtle 3.2s ease-in-out infinite;
+}
+
+/* Live Online Beacon Radar Wave */
+@keyframes beaconPulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7);
+  }
+  70% {
+    box-shadow: 0 0 0 10px rgba(16, 185, 129, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0);
+  }
+}
+
+.animate-beacon-pulse {
+  animation: beaconPulse 1.8s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* Circuit trace signal flow */
+@keyframes dashTravel {
+  to {
+    stroke-dashoffset: -40;
+  }
+}
+
+.animate-circuit-flow {
+  stroke-dasharray: 6 6;
+  animation: dashTravel 2s linear infinite;
+}
+
+/* Optical Sensor Laser Sweep Animation */
+@keyframes laserSweep {
+  0% {
+    top: 14%;
+    opacity: 0.6;
+    transform: scaleX(0.92);
+  }
+  50% {
+    top: 86%;
+    opacity: 1;
+    transform: scaleX(1);
+  }
+  100% {
+    top: 14%;
+    opacity: 0.6;
+    transform: scaleX(0.92);
+  }
+}
+
+.animate-laser-sweep {
+  animation: laserSweep 2.8s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+@keyframes standbyBeamTravel {
+  0%, 100% { top: 50%; opacity: 0.7; }
+  50% { top: 76%; opacity: 1; }
+}
+
+.safi-standby-beam {
+  animation: standbyBeamTravel 2.4s ease-in-out infinite;
+}
+
+@keyframes scannerBeamTravel {
+  0%, 100% { top: 0; opacity: 0.65; }
+  50% { top: calc(100% - 2px); opacity: 1; }
+}
+
+.safi-scanner-beam {
+  animation: scannerBeamTravel 2.2s ease-in-out infinite;
+}
+
+/* Optical Radar Wave Ripple */
+@keyframes opticalRadarWave {
+  0% {
+    transform: scale(0.85);
+    opacity: 0.9;
+  }
+  50% {
+    transform: scale(1.6);
+    opacity: 0.2;
+  }
+  100% {
+    transform: scale(2.1);
+    opacity: 0;
+  }
+}
+
+.animate-radar-wave {
+  animation: opticalRadarWave 2.2s cubic-bezier(0, 0.2, 0.8, 1) infinite;
+}
+
+/* Float Gentle Movement */
+@keyframes floatGentle {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-6px);
+  }
+}
+
+.animate-float-gentle {
+  animation: floatGentle 2.6s ease-in-out infinite;
+}
+
+/* Reticle Spin Animation */
+@keyframes reticleSpin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+.animate-spin-slow {
+  animation: reticleSpin 16s linear infinite;
+}
+
+/* SAFI SALI COMPANY LOGIN / SIGN UP */
+.safi-auth { font-family: 'Plus Jakarta Sans', system-ui, sans-serif; background: #f5f7fc; }
+.safi-auth-showcase { isolation: isolate; }
+.safi-auth-brand { display: block; width: clamp(190px, 20vw, 250px) !important; height: auto !important; }
+.safi-auth-form-brand { display: block; width: min(250px, 72vw) !important; height: auto !important; }
+.safi-auth-brand-header { min-height: 100px; }
+.safi-auth-language { transform: translateY(-100%); margin-top: -8px; }
+.safi-field {
+  position: relative;
+  display: flex;
+  align-items: center;
+  min-height: 48px;
+  border: 1px solid #cbd3df;
+  border-radius: 11px;
+  background: #fff;
+  transition: border-color .18s ease, box-shadow .18s ease;
+}
+.safi-field:focus-within { border-color: #17458c; box-shadow: 0 0 0 3px rgba(23, 69, 140, .12); }
+.safi-field-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 46px;
+  flex: 0 0 46px;
+  color: #173d7c;
+}
+.safi-field-icon svg { width: 19px; height: 19px; stroke-width: 2.2; }
+.safi-field input {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  height: 46px;
+  padding: 0 12px 0 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: #172033;
+  font-size: 15px;
+}
+.safi-field input::placeholder { color: #778196; opacity: 1; }
+.safi-eye {
+  display: flex;
+  width: 44px;
+  height: 46px;
+  flex: 0 0 44px;
+  align-items: center;
+  justify-content: center;
+  color: #173d7c;
+}
+.safi-eye svg { width: 19px; height: 19px; }
+@media (min-width: 1024px) {
+  .safi-auth-copy,
+  .safi-auth-showcase-footer { width: 100%; max-width: 620px; }
+  .safi-feature-wide {
+    grid-column: auto;
+    align-items: flex-start;
+  }
+  .safi-feature-wide .safi-feature-copy {
+    display: block;
+    min-width: 0;
+    white-space: normal;
+  }
+  .safi-feature-wide .safi-feature-label,
+  .safi-feature-wide .safi-feature-description {
+    margin: 0;
+  }
+  .safi-feature-wide .safi-feature-label { font-size: 13px; line-height: 1.25; }
+  .safi-feature-wide .safi-feature-description { margin-top: 4px; font-size: 11px; line-height: 1.45; }
+  .safi-auth-showcase-footer {
+    flex-wrap: nowrap;
+    justify-content: space-between;
+    gap: 4px;
+    font-size: 9px;
+    white-space: nowrap;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .safi-auth *,
+    .safi-auth *::before,
+    .safi-auth *::after {
+      scroll-behavior: auto !important;
+      animation-duration: .01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: .01ms !important;
+    }
+  }
+  .safi-auth-showcase-footer .inline-flex { gap: 4px; }
+  .safi-auth-showcase-footer .safi-auth-contact-links { gap: 6px; font-size: 10px; }
+  .safi-auth-showcase-footer .safi-auth-contact-link { font-weight: 700; }
+}
+@media (min-width: 1024px) and (max-height: 780px) {
+  .safi-auth-form-brand { width: 200px !important; }
+  .safi-auth-brand-header { min-height: 88px; }
+  .safi-field { min-height: 40px; }
+  .safi-field input,
+  .safi-eye { height: 38px; }
+}
+@media (max-width: 1023px) {
+  .safi-auth-layout {
+    display: flex;
+    flex-direction: column;
+  }
+  .safi-auth-form-section { order: -1; }
+  .safi-auth-mobile-footer { display: none; }
+  .safi-auth-showcase {
+    order: 1;
+    display: flex;
+    min-height: 0;
+    padding: 18px 20px;
+  }
+  .safi-auth-showcase-brand,
+  .safi-auth-copy {
+    display: flex;
+    width: 100%;
+    max-width: 620px;
+  }
+  .safi-auth-copy {
+    flex-direction: column;
+    margin: 0;
+    padding: 20px 0 8px;
+  }
+  .safi-auth-showcase-footer {
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    max-width: 620px;
+    gap: 4px;
+    padding-top: 12px;
+    font-size: clamp(6.5px, 1.8vw, 9px);
+    white-space: nowrap;
+  }
+  .safi-auth-showcase-footer .inline-flex { gap: 3px; }
+  .safi-auth-form-section {
+    min-height: 100dvh;
+    padding: 28px 20px;
+  }
+  .safi-auth-form-wrap {
+    padding-top: 40px;
+  }
+  .safi-auth-language {
+    top: 0;
+    transform: none;
+    margin-top: 0;
+  }
+  .safi-auth-brand-header {
+    min-height: 84px;
+  }
+  .safi-auth-form-brand {
+    width: min(210px, 60vw) !important;
+  }
+  .safi-field {
+    min-height: 46px;
+  }
+  .safi-field input,
+  .safi-eye {
+    height: 44px;
+  }
+}
+@media (max-width: 767px) {
+  .safi-auth-showcase { display: none; }
+  .safi-auth-authorization,
+  body:has(.safi-auth) .safi-support-chat-panel,
+  body:has(.safi-auth) .safi-support-chat-toggle { display: none; }
+  .safi-auth-language {
+    position: static;
+    display: flex;
+    justify-content: flex-end;
+    width: fit-content;
+    margin: 0 0 10px auto;
+    transform: none;
+  }
+  .safi-auth-mobile-footer {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 7px;
+    width: calc(100vw - 16px);
+    margin-left: calc((100% - 100vw + 16px) / 2);
+    padding: 16px 8px 0;
+    color: #64748b;
+    font-size: 11px;
+    line-height: 1.5;
+    white-space: normal;
+  }
+  .safi-auth-mobile-footer .inline-flex {
+    align-items: center;
+    gap: 7px;
+    color: #475569;
+    font-size: inherit;
+  }
+  .safi-auth-mobile-footer .inline-flex a {
+    display: inline-flex;
+    min-height: 34px;
+    align-items: center;
+    justify-content: center;
+    padding: 0 12px;
+    border: 1px solid #d5deeb;
+    border-radius: 9999px;
+    background: #fff;
+    color: #173d7c;
+    font-weight: 700;
+    font-size: 12px;
+    text-decoration: none;
+    box-shadow: 0 1px 3px rgb(15 23 42 / 7%);
+  }
+  .safi-auth-mobile-footer .inline-flex .safi-auth-contact-link {
+    border-color: #b7e4c7;
+    background: #f0fdf4;
+    color: #166534;
+  }
+  .safi-auth-mobile-footer .inline-flex .safi-auth-contact-link:hover {
+    background: #dcfce7;
+    color: #14532d;
+  }
+  .safi-auth-mobile-footer .inline-flex a:hover { color: #0b2a66; }
+  .safi-auth-mobile-footer .inline-flex > span[aria-hidden="true"] { color: #94a3b8; }
+}
+@media (max-width: 520px) {
+  .safi-auth-showcase { padding: 14px 12px; }
+  .safi-auth-brand { width: min(190px, 58vw) !important; }
+  .safi-auth-copy { padding-top: 16px; }
+  .safi-auth-form-section {
+    box-sizing: border-box;
+    width: 100%;
+    min-height: 100dvh;
+    padding: 12px 14px 20px;
+  }
+  .safi-auth-form-wrap {
+    width: 100%;
+    max-width: 430px;
+    padding-top: 0;
+  }
+  .safi-auth-form-brand {
+    width: min(176px, 56vw) !important;
+  }
+  .safi-auth-brand-header {
+    min-height: 68px;
+  }
+  .safi-auth-form-section .overflow-hidden.rounded-2xl > div:last-child {
+    padding: 8px 14px;
+  }
+  .safi-auth-form-section form {
+    margin-top: 8px;
+    row-gap: 4px;
+  }
+  .safi-auth-form-section .overflow-hidden.rounded-2xl > div:last-child > div.rounded-xl {
+    padding-block: 10px;
+  }
+  .safi-auth-form-section .overflow-hidden.rounded-2xl > div:last-child > p {
+    margin-top: 6px;
+    font-size: 12px;
+    line-height: 18px;
+  }
+  .safi-auth-form-section .safi-field,
+  .safi-auth-form-section .safi-field input,
+  .safi-auth-form-section .safi-eye {
+    min-height: 44px;
+    height: 42px;
+  }
+  .safi-auth-form-section form > button[type="submit"] {
+    min-height: 44px;
+    margin-top: 4px;
+    padding-block: 8px;
+  }
+}
+@media (max-width: 520px) and (max-height: 700px) {
+  .safi-auth-form-section {
+    min-height: 100dvh;
+    padding-block: 12px;
+  }
+}
