@@ -16,6 +16,7 @@ import { createAccountingRouter } from './routes/accounting.js';
 import { createSuperAdminRouter } from './routes/superAdmin.js';
 import { ensureSubscriptionPlans } from './models/SubscriptionPlan.js';
 import { createMySqlAuthRouter } from './routes/mysqlAuth.js';
+import { createMySqlDashboardRouter } from './routes/mysqlDashboards.js';
 
 const app = express();
 const frontendDistPath = path.resolve(
@@ -59,6 +60,7 @@ const authenticate = createAuthenticate(tokenSecret);
 app.use('/api/auth/users', authenticate, requireActiveLicense);
 app.use('/api/auth', createAuthRouter(tokenSecret, authenticate));
 app.use('/api/mysql-auth', createMySqlAuthRouter(tokenSecret));
+app.use('/api/mysql-dashboards', createMySqlDashboardRouter(tokenSecret));
 app.use('/api/super-admin', authenticate, createSuperAdminRouter());
 app.use(['/api/workspace', '/workspace'], authenticate, createWorkspaceRouter());
 app.use('/api/accounting', authenticate, requireActiveLicense, createAccountingRouter());
