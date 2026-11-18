@@ -7,13 +7,13 @@
     "dev": "nodemon src/server.js",
     "build": "node ../Frontend/node_modules/vite/bin/vite.js build ../Frontend --config ../Frontend/vite.config.ts",
     "start": "node src/server.js",
-    "migrate:mysql": "node scripts/migrate-mysql.js"
+    "migrate:mysql": "node scripts/migrate-mysql.js",
+    "test": "node --test"
   },
   "dependencies": {
     "cors": "^2.8.5",
     "dotenv": "^16.4.7",
     "express": "^4.21.2",
-    "mongoose": "^8.9.5",
     "nodemailer": "^7.0.13",
     "mysql2": "^3.14.0"
   },
