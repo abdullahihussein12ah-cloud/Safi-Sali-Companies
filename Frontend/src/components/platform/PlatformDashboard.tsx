@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Activity, ArrowDownRight, ArrowUpRight, Bell, Building2, CheckCircle2, CircleDollarSign, ClipboardList, CreditCard, Crown, Download, ExternalLink, Eye, FileText, Link2, LogOut, Menu, Search, Settings, ShieldCheck, Users, Wallet } from 'lucide-react';
-import { Logo } from './brand/Logo';
-import { getStoredAccessToken } from '../services/api';
+import { Logo } from '../brand/Logo';
+import { getStoredAccessToken } from '../../services/api';
 
 type Role = 'super_admin' | 'business_admin' | 'affiliate' | 'finance_admin';
 type Props = { role: string; user: { name?: string; email?: string; profileImageUrl?: string | null }; onLogout: () => void };
