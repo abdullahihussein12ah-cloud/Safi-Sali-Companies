@@ -77,6 +77,7 @@ const AppContent: React.FC = () => {
     authLoading,
     permissions,
     permissionsReady,
+    logout,
   } = useApp();
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -144,7 +145,7 @@ const AppContent: React.FC = () => {
   }
 
   if (['super_admin', 'business_admin', 'affiliate', 'finance_admin'].includes(activeUser.role)) {
-    return <PlatformDashboard role={activeUser.role} user={activeUser} onLogout={() => { /* session logout is handled by the app context */ }} />;
+    return <PlatformDashboard role={activeUser.role} user={activeUser} onLogout={logout} />;
   }
 
   if (activeUser.role === 'super_admin') {
