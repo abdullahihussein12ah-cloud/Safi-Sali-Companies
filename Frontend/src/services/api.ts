@@ -312,14 +312,14 @@ export async function verifyEmailAddress(
 }
 
 export async function requestPasswordReset(email: string): Promise<void> {
-  await request<{ message: string }>('/auth/forgot-password', {
+  await request<{ message: string }>('/mysql-auth/forgot-password', {
     method: 'POST',
     body: JSON.stringify({ email }),
   });
 }
 
 export async function resendPasswordResetCode(email: string): Promise<void> {
-  await request<{ message: string }>('/auth/resend-reset-code', {
+  await request<{ message: string }>('/mysql-auth/resend-reset-code', {
     method: 'POST',
     body: JSON.stringify({ email }),
   });
@@ -329,7 +329,7 @@ export async function verifyPasswordResetCode(
   email: string,
   code: string
 ): Promise<string> {
-  const result = await request<{ resetToken: string }>('/auth/verify-reset-code', {
+  const result = await request<{ resetToken: string }>('/mysql-auth/verify-reset-code', {
     method: 'POST',
     body: JSON.stringify({ email, code }),
   });
@@ -340,7 +340,7 @@ export async function verifyPasswordResetCode(
 }
 
 export async function completePasswordReset(token: string, password: string): Promise<void> {
-  await request<{ message: string }>('/auth/reset-password', {
+  await request<{ message: string }>('/mysql-auth/reset-password', {
     method: 'POST',
     body: JSON.stringify({ token, password }),
   });
