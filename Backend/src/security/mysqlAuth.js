@@ -67,13 +67,32 @@ export function readMySqlAccessToken(token, secret, now = Date.now()) {
 }
 
 export function createMySqlAuthenticate(secret) {
-  return (req, res, next) => {
+  return async (req, res, next) => {
     const authorization = req.get('authorization') || '';
-    const match = /^Bearer\s+(.+)$/i.exec(authorization);
+    const match = /^Bearer\\s+(.+)$/i.exec(authorization);
     const claims = match ? readMySqlAccessToken(match[1], secret) : null;
     if (!claims) return res.status(401).json({ error: 'Authentication required.' });
-    req.auth = claims;
-    return next();
+    try {
+      // Read current account state and permissions from MySQL on every request.
+      // This immediately revokes access after suspension, disablement, or role changes.
+      const [rows] = await getMySqlPool().execute(
+        'SELECT id, business_id, role, status FROM users WHERE id=? LIMIT 1',
+        [claims.sub],
+      );
+      const user = rows[0];
+      if (!user || user.status !== 'active' || !ALLOWED_ROLES.includes(user.role)) {
+        return res.status(401).json({ error: 'Your account is inactive. Please sign in again or contact an administrator.' });
+      }
+      req.auth = {
+        ...claims,
+        sub: String(user.id),
+        role: user.role,
+        businessId: user.business_id == null ? null : String(user.business_id),
+      };
+      return next();
+    } catch (error) {
+      return next(error);
+    }
   };
 }
 
