@@ -1,5 +1,6 @@
 import { randomBytes, scrypt as scryptCallback, timingSafeEqual, createHmac } from 'node:crypto';
 import { promisify } from 'node:util';
+import { getMySqlPool } from '../config/mysql.js';
 
 const scrypt = promisify(scryptCallback);
 const TOKEN_TTL_SECONDS = 60 * 60 * 8;
