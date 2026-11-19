@@ -58,7 +58,7 @@ export function createMySqlReferralRouter(secret) {
     const grossAmount = typeof req.body?.grossAmount === 'string' || typeof req.body?.grossAmount === 'number' ? String(req.body.grossAmount) : '';
     const eligibleAmount = typeof req.body?.eligibleAmount === 'string' || typeof req.body?.eligibleAmount === 'number' ? String(req.body.eligibleAmount) : '';
     const cents = (value) => {
-      if (!/^\\d{1,12}(?:\\.\\d{1,2})?$/.test(value)) return null;
+      if (!/^\d{1,12}(?:\.\d{1,2})?$/.test(value)) return null;
       const [whole, fraction = ''] = value.split('.');
       return BigInt(whole) * 100n + BigInt((fraction + '00').slice(0,2));
     };
@@ -124,10 +124,14 @@ export function createMySqlReferralRouter(secret) {
           );
           const rule = rules[0] || { id: null, rate_percent: '10.00' };
           const [created] = await connection.execute(
-            "INSERT INTO commissions (sale_id,affiliate_user_id,rule_id,rate_percent,basis_amount,commission_amount,currency,status) VALUES (?,?,?,?,?,?,?,'pending')",
-            [sale.id,ref.affiliate_user_id,rule.id,rule.rate_percent,sale.eligible_amount,(Number(sale.eligible_amount)*Number(rule.rate_percent)/100).toFixed(2),sale.currency],
+            "INSERT INTO commissions (sale_id,affiliate_user_id,rule_id,rate_percent,basis_amount,commission_amount,currency,status) VALUES (?,?,?,?,?,ROUND(? * ? / 100, 2),?,'pending')",
+            [sale.id,ref.affiliate_user_id,rule.id,rule.rate_percent,sale.eligible_amount,sale.eligible_amount,rule.rate_percent,sale.currency],
           );
-          commission = { id: String(created.insertId), ratePercent: String(rule.rate_percent), amount: (Number(sale.eligible_amount)*Number(rule.rate_percent)/100).toFixed(2), currency: sale.currency, status: 'pending' };
+          const [commissionRows] = await connection.execute(
+            'SELECT commission_amount FROM commissions WHERE id=? LIMIT 1',
+            [created.insertId],
+          );
+          commission = { id: String(created.insertId), ratePercent: String(rule.rate_percent), amount: String(commissionRows[0].commission_amount), currency: sale.currency, status: 'pending' };
           await connection.execute("UPDATE referrals SET status='converted',converted_at=NOW() WHERE id=?", [sale.referral_id]);
           await connection.execute(
             "INSERT INTO notifications (recipient_user_id,business_id,event_type,title,message) VALUES (?,?, 'commission_pending','Commission earned','A referred sale was confirmed. Your commission is pending approval.')",
