@@ -9,8 +9,31 @@ on:
       - main
 
 jobs:
-  backend-tests-and-frontend-build:
+  backend-tests-mysql-integration-and-frontend-build:
     runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_ROOT_PASSWORD: root-test-password
+          MYSQL_DATABASE: safisali_test
+          MYSQL_USER: safisali_test
+          MYSQL_PASSWORD: safisali-test-password
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -proot-test-password"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=12
+    env:
+      MYSQL_HOST: 127.0.0.1
+      MYSQL_PORT: 3306
+      MYSQL_DATABASE: safisali_test
+      MYSQL_USER: safisali_test
+      MYSQL_PASSWORD: safisali-test-password
+      MYSQL_INTEGRATION: "1"
+      AUTH_TOKEN_SECRET: ci-only-secret-that-is-long-enough-for-tests-2026
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -23,9 +46,15 @@ jobs:
       - name: Install backend dependencies
         working-directory: Backend
         run: npm install --legacy-peer-deps --no-audit --no-fund
-      - name: Run backend tests
+      - name: Run backend unit tests
         working-directory: Backend
         run: npm test
+      - name: Apply all MySQL migrations to clean MySQL 8.4
+        working-directory: Backend
+        run: npm run migrate:mysql
+      - name: Run live MySQL integration tests
+        working-directory: Backend
+        run: npm run test:mysql
       - name: Install frontend dependencies
         working-directory: Frontend
         run: npm install --legacy-peer-deps --no-audit --no-fund
