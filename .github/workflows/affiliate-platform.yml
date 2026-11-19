@@ -22,13 +22,13 @@ jobs:
             Frontend/package-lock.json
       - name: Install backend dependencies
         working-directory: Backend
-        run: npm install --no-audit --no-fund
+        run: npm install --legacy-peer-deps --no-audit --no-fund
       - name: Run backend tests
         working-directory: Backend
         run: npm test
       - name: Install frontend dependencies
         working-directory: Frontend
-        run: npm install --no-audit --no-fund
+        run: npm install --legacy-peer-deps --no-audit --no-fund
       - name: Build frontend
         working-directory: Frontend
         run: npm run build
