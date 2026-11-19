@@ -21,13 +21,31 @@ const pool = await mysql.createConnection({
 });
 
 try {
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS schema_migrations (
+      version VARCHAR(190) NOT NULL PRIMARY KEY,
+      applied_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+  `);
+
   for (const relativePath of migrationFiles) {
     const migrationPath = path.resolve(here, relativePath);
+    const version = path.basename(migrationPath);
+    const [applied] = await pool.execute(
+      'SELECT version FROM schema_migrations WHERE version = ? LIMIT 1',
+      [version],
+    );
+    if (applied.length) {
+      console.log(`Skipped already-applied MySQL migration: ${version}`);
+      continue;
+    }
+
     const sql = await readFile(migrationPath, 'utf8');
     await pool.query(sql);
-    console.log(`Applied MySQL migration: ${path.basename(migrationPath)}`);
+    await pool.execute('INSERT INTO schema_migrations (version) VALUES (?)', [version]);
+    console.log(`Applied MySQL migration: ${version}`);
   }
-  console.log('SAFI SALI COMPANIES MySQL migrations applied successfully.');
+  console.log('SAFI SALI COMPANIES MySQL migrations completed successfully.');
 } catch (error) {
   console.error('MySQL migration failed:', error.message);
   process.exitCode = 1;
