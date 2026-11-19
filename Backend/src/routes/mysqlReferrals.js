@@ -48,6 +48,51 @@ export function createMySqlReferralRouter(secret) {
     finally { connection.release(); }
   });
 
+
+  // Create a business sale with a verified affiliate attribution token.
+  router.post('/sales', auth, requireMySqlRoles('business_admin','super_admin'), async (req, res, next) => {
+    const businessId = req.auth.role === 'super_admin' ? Number(req.body?.businessId) : Number(req.auth.businessId);
+    const referralToken = typeof req.body?.referralToken === 'string' ? req.body.referralToken : '';
+    const externalOrderRef = typeof req.body?.externalOrderRef === 'string' ? req.body.externalOrderRef.trim().slice(0,120) : '';
+    const currency = typeof req.body?.currency === 'string' ? req.body.currency.trim().toUpperCase() : '';
+    const grossAmount = typeof req.body?.grossAmount === 'string' || typeof req.body?.grossAmount === 'number' ? String(req.body.grossAmount) : '';
+    const eligibleAmount = typeof req.body?.eligibleAmount === 'string' || typeof req.body?.eligibleAmount === 'number' ? String(req.body.eligibleAmount) : '';
+    const cents = (value) => {
+      if (!/^\\d{1,12}(?:\\.\\d{1,2})?$/.test(value)) return null;
+      const [whole, fraction = ''] = value.split('.');
+      return BigInt(whole) * 100n + BigInt((fraction + '00').slice(0,2));
+    };
+    const grossCents = cents(grossAmount);
+    const eligibleCents = cents(eligibleAmount);
+    if (!Number.isSafeInteger(businessId) || businessId < 1 || !/^[A-Z]{3}$/.test(currency) ||
+        !externalOrderRef || !/^[a-f0-9]{64}$/.test(referralToken) ||
+        grossCents === null || eligibleCents === null || grossCents <= 0n || eligibleCents > grossCents) {
+      return res.status(400).json({ error: 'Provide valid sale, currency, amount, and referral attribution details.' });
+    }
+    const connection = await getMySqlPool().getConnection();
+    try {
+      await connection.beginTransaction();
+      const [links] = await connection.execute(
+        "SELECT id, affiliate_user_id FROM referrals WHERE attribution_token=? AND business_id=? AND status IN ('clicked','registered') LIMIT 1 FOR UPDATE",
+        [token(referralToken), businessId],
+      );
+      if (!links.length) {
+        await connection.rollback();
+        return res.status(404).json({ error: 'The referral attribution is invalid, expired, or belongs to another business.' });
+      }
+      const [result] = await connection.execute(
+        "INSERT INTO sales (business_id, referral_id, external_order_ref, currency, gross_amount, eligible_amount, status) VALUES (?,?,?,?,?,?, 'pending')",
+        [businessId, links[0].id, externalOrderRef, currency, grossAmount, eligibleAmount],
+      );
+      await connection.commit();
+      return res.status(201).json({ saleId: String(result.insertId), status: 'pending', referralAttributed: true });
+    } catch (error) {
+      await connection.rollback().catch(() => {});
+      if (error.code === 'ER_DUP_ENTRY') return res.status(409).json({ error: 'This order reference already exists for the business.' });
+      return next(error);
+    } finally { connection.release(); }
+  });
+
   // Confirm a previously-created sale and create its commission exactly once.
   router.post('/sales/:saleId/confirm', auth, requireMySqlRoles('business_admin','super_admin'), async (req, res, next) => {
     const connection = await getMySqlPool().getConnection();
