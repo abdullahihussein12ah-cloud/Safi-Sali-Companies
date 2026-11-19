@@ -8,6 +8,7 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const migrationFiles = [
   '../../Database/MySQL/001_affiliate_platform.sql',
   '../../Database/MySQL/002_email_verification.sql',
+  '../../Database/MySQL/003_password_reset.sql',
 ];
 const pool = await mysql.createConnection({
   host: process.env.MYSQL_HOST,
