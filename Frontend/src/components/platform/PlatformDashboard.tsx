@@ -41,6 +41,10 @@ export const PlatformDashboard: React.FC<Props> = ({ role: rawRole, user, onLogo
   const [unreadCount, setUnreadCount] = useState(0);
   const [notificationBusy, setNotificationBusy] = useState(false);
   const [notificationError, setNotificationError] = useState('');
+  const [reportData, setReportData] = useState<{sales:any[];commissions:any[]}|null>(null);
+  const [reportBusy, setReportBusy] = useState(false);
+  const [reportError, setReportError] = useState('');
+
 
 
 
@@ -96,6 +100,20 @@ export const PlatformDashboard: React.FC<Props> = ({ role: rawRole, user, onLogo
       .catch(error => { if (alive) setNotificationError(error instanceof Error ? error.message : 'Notifications could not be loaded.'); })
       .finally(() => { if (alive) setNotificationBusy(false); });
     return () => { alive = false; };
+  }, [active]);
+
+
+  useEffect(() => {
+    if (active !== 'Reports') return;
+    const token = getStoredAccessToken(); if (!token) return;
+    let alive = true;
+    setReportBusy(true); setReportError('');
+    fetch('/api/mysql-dashboards/reports/monthly', { headers: { Authorization: 'Bearer ' + token } })
+      .then(async response => { const body=await response.json().catch(()=>({})); if(!response.ok) throw new Error(body.error || 'Reports could not be loaded.'); return body; })
+      .then(body => { if(alive) setReportData({sales:Array.isArray(body.sales)?body.sales:[],commissions:Array.isArray(body.commissions)?body.commissions:[]}); })
+      .catch(error => { if(alive) setReportError(error instanceof Error?error.message:'Reports could not be loaded.'); })
+      .finally(() => { if(alive) setReportBusy(false); });
+    return () => { alive=false; };
   }, [active]);
 
   const markNotificationRead = async (id: string | number) => {
@@ -220,6 +238,19 @@ export const PlatformDashboard: React.FC<Props> = ({ role: rawRole, user, onLogo
         <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">{(loading ? Array.from({length:4},(_,i)=>({label:'Loading metric',value:'—',icon:Activity})) : metrics).map((m,i) => { const Icon=m.icon; return <section key={m.label+i} className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-[0_3px_16px_rgba(18,39,71,.045)]"><div className="flex items-center justify-between"><span className="text-xs font-semibold text-slate-500">{m.label}</span><span className="rounded-xl bg-[#f8f2e4] p-2.5 text-[#a77e24]"><Icon size={18}/></span></div><p className="mt-4 text-[26px] font-extrabold tracking-tight text-[#142747]">{m.value}</p><p className="mt-2 text-[10px] font-medium text-slate-400">Verified from platform API</p></section>; })}</div>
 
 
+
+        {active === 'Reports' && <section className="mb-6 space-y-5">
+          <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm"><div className="mb-4"><h2 className="text-lg font-bold text-[#142747]">Monthly sales report</h2><p className="mt-1 text-sm text-slate-500">Last 12 months · role-scoped MySQL data · revenue shown by currency</p></div>
+            {reportError && <p role="alert" className="mb-3 rounded-lg bg-rose-50 p-3 text-sm text-rose-700">{reportError}</p>}
+            {reportBusy && <p className="py-3 text-sm text-slate-500">Loading reports…</p>}
+            <div className="overflow-x-auto"><table className="w-full text-left text-sm"><thead><tr className="border-b text-xs text-slate-500"><th className="p-3">Month</th><th className="p-3">Currency</th><th className="p-3">Sales</th><th className="p-3">Eligible revenue</th></tr></thead><tbody>{(reportData?.sales||[]).map((row,i)=><tr key={row.month+row.currency+i} className="border-b border-slate-100"><td className="p-3">{row.month}</td><td className="p-3">{row.currency}</td><td className="p-3">{fmt(row.salesCount)}</td><td className="p-3 font-semibold">{money(row.eligibleRevenue)}</td></tr>)}</tbody></table></div>
+            {!reportBusy && !(reportData?.sales.length) && <p className="py-4 text-center text-sm text-slate-500">No sales report data for this period.</p>}
+          </div>
+          <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm"><div className="mb-4"><h2 className="text-lg font-bold text-[#142747]">Commission report</h2><p className="mt-1 text-sm text-slate-500">Commission totals and paid totals, without referred-customer personal information</p></div>
+            <div className="overflow-x-auto"><table className="w-full text-left text-sm"><thead><tr className="border-b text-xs text-slate-500"><th className="p-3">Month</th><th className="p-3">Currency</th><th className="p-3">Commissions</th><th className="p-3">Total</th><th className="p-3">Paid</th></tr></thead><tbody>{(reportData?.commissions||[]).map((row,i)=><tr key={row.month+row.currency+i} className="border-b border-slate-100"><td className="p-3">{row.month}</td><td className="p-3">{row.currency}</td><td className="p-3">{fmt(row.commissionCount)}</td><td className="p-3 font-semibold">{money(row.commissionTotal)}</td><td className="p-3">{money(row.paidTotal)}</td></tr>)}</tbody></table></div>
+            {!reportBusy && !(reportData?.commissions.length) && <p className="py-4 text-center text-sm text-slate-500">No commission report data for this period.</p>}
+          </div>
+        </section>}
         {active === 'Notifications' && <section className="mb-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
           <div className="mb-4 flex flex-wrap items-center justify-between gap-3"><div><h2 className="text-lg font-bold text-[#142747]">Notifications</h2><p className="mt-1 text-sm text-slate-500">{unreadCount} unread notifications</p></div><button disabled={notificationBusy || unreadCount === 0} onClick={markAllNotificationsRead} className="rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-[#142747] disabled:opacity-50">Mark all as read</button></div>
           {notificationError && <p role="alert" className="mb-3 rounded-lg bg-rose-50 p-3 text-sm text-rose-700">{notificationError}</p>}
