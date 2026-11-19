@@ -5,6 +5,8 @@ export type RoleType =
   | 'accountant'
   | 'business_owner'
   | 'business_admin'
+  | 'affiliate'
+  | 'finance_admin'
   | 'branch_manager'
   | 'inventory_manager'
   | 'hr_manager'
