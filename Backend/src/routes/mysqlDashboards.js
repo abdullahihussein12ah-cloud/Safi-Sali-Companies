@@ -55,5 +55,50 @@ export function createMySqlDashboardRouter(secret) {
     } catch (error) { return next(error); }
   });
 
+
+  // Monthly report data is scoped to the authenticated role and never returns customer identities.
+  router.get('/reports/monthly', auth, async (req, res, next) => {
+    try {
+      const db = getMySqlPool();
+      const params = [];
+      let saleScope = '';
+      let commissionScope = '';
+      if (req.auth.role === 'business_admin') {
+        if (!req.auth.businessId) return res.status(403).json({ error: 'No business is assigned to this account.' });
+        saleScope = ' AND s.business_id=?';
+        commissionScope = ' AND s.business_id=?';
+        params.push(req.auth.businessId);
+      } else if (req.auth.role === 'affiliate') {
+        saleScope = ' AND r.affiliate_user_id=?';
+        commissionScope = ' AND c.affiliate_user_id=?';
+        params.push(req.auth.sub);
+      } else if (!['super_admin','finance_admin'].includes(req.auth.role)) {
+        return res.status(403).json({ error: 'You are not allowed to view reports.' });
+      }
+      const [sales] = await db.execute(
+        `SELECT DATE_FORMAT(s.created_at,'%Y-%m') AS month, s.currency, COUNT(*) AS salesCount,
+          COALESCE(SUM(CASE WHEN s.status='confirmed' THEN s.eligible_amount ELSE 0 END),0) AS eligibleRevenue
+         FROM sales s LEFT JOIN referrals r ON r.id=s.referral_id
+         WHERE s.created_at >= DATE_SUB(CURRENT_DATE, INTERVAL 11 MONTH)${saleScope}
+         GROUP BY DATE_FORMAT(s.created_at,'%Y-%m'),s.currency ORDER BY month ASC`,
+        params,
+      );
+      const [commissions] = await db.execute(
+        `SELECT DATE_FORMAT(c.created_at,'%Y-%m') AS month,c.currency,COUNT(*) AS commissionCount,
+          COALESCE(SUM(c.commission_amount),0) AS commissionTotal,
+          COALESCE(SUM(CASE WHEN c.status='paid' THEN c.commission_amount ELSE 0 END),0) AS paidTotal
+         FROM commissions c JOIN sales s ON s.id=c.sale_id
+         WHERE c.created_at >= DATE_SUB(CURRENT_DATE, INTERVAL 11 MONTH)${commissionScope}
+         GROUP BY DATE_FORMAT(c.created_at,'%Y-%m'),c.currency ORDER BY month ASC`,
+        params,
+      );
+      return res.json({
+        periodMonths: 12,
+        sales: sales.map(row => ({ ...row, eligibleRevenue: money(row.eligibleRevenue) })),
+        commissions: commissions.map(row => ({ ...row, commissionTotal: money(row.commissionTotal), paidTotal: money(row.paidTotal) })),
+      });
+    } catch (error) { return next(error); }
+  });
+
   return router;
 }
