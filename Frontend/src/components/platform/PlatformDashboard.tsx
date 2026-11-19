@@ -8,10 +8,10 @@ type Props = { role: string; user: { name?: string; email?: string; profileImage
 type Payload = Record<string, any>;
 
 const roleConfig: Record<Role, { title: string; subtitle: string; endpoint: string; nav: string[] }> = {
-  super_admin: { title: 'Platform Overview', subtitle: 'Monitor the complete SAFI SALI COMPANIES network.', endpoint: '/api/mysql-dashboards/super-admin/overview', nav: ['Overview', 'Businesses', 'Users & Roles', 'Affiliates', 'Commissions', 'Transactions', 'Reports', 'Audit Log', 'Settings'] },
-  business_admin: { title: 'Business Overview', subtitle: 'Track your business performance, partners and sales.', endpoint: '/api/mysql-dashboards/business-admin/overview', nav: ['Overview', 'My Business', 'Referrals', 'Affiliates', 'Sales', 'Commissions', 'Reports', 'Settings'] },
+  super_admin: { title: 'Platform Overview', subtitle: 'Monitor the complete SAFI SALI COMPANIES network.', endpoint: '/api/mysql-dashboards/super-admin/overview', nav: ['Overview', 'Businesses', 'Users & Roles', 'Affiliates', 'Commissions', 'Transactions', 'Reports', 'Audit Log', 'Notifications', 'Settings'] },
+  business_admin: { title: 'Business Overview', subtitle: 'Track your business performance, partners and sales.', endpoint: '/api/mysql-dashboards/business-admin/overview', nav: ['Overview', 'My Business', 'Referrals', 'Affiliates', 'Sales', 'Commissions', 'Reports', 'Notifications', 'Settings'] },
   affiliate: { title: 'Affiliate Overview', subtitle: 'Track referrals, conversions and your commission earnings.', endpoint: '/api/mysql-dashboards/affiliate/overview', nav: ['Overview', 'My Referral Links', 'Referrals', 'Earnings', 'Withdrawals', 'Notifications', 'Profile'] },
-  finance_admin: { title: 'Finance Overview', subtitle: 'Review platform transactions and payout requests.', endpoint: '/api/mysql-dashboards/finance/overview', nav: ['Overview', 'Transactions', 'Payout Requests', 'Commissions', 'Reconciliation', 'Reports', 'Settings'] },
+  finance_admin: { title: 'Finance Overview', subtitle: 'Review platform transactions and payout requests.', endpoint: '/api/mysql-dashboards/finance/overview', nav: ['Overview', 'Transactions', 'Payout Requests', 'Commissions', 'Reconciliation', 'Reports', 'Notifications', 'Settings'] },
 };
 
 const fmt = (value: unknown) => {
@@ -37,6 +37,11 @@ export const PlatformDashboard: React.FC<Props> = ({ role: rawRole, user, onLogo
   const [paymentMethod, setPaymentMethod] = useState('Bank transfer');
   const [paymentDestination, setPaymentDestination] = useState('');
   const [paymentReference, setPaymentReference] = useState('');
+  const [notifications, setNotifications] = useState<any[]>([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [notificationBusy, setNotificationBusy] = useState(false);
+  const [notificationError, setNotificationError] = useState('');
+
 
 
   useEffect(() => {
@@ -77,6 +82,43 @@ export const PlatformDashboard: React.FC<Props> = ({ role: rawRole, user, onLogo
       .finally(() => { if (alive) setPayoutBusy(false); });
     return () => { alive = false; };
   }, [role, active]);
+
+
+  useEffect(() => {
+    if (active !== 'Notifications') return;
+    const token = getStoredAccessToken();
+    if (!token) return;
+    let alive = true;
+    setNotificationBusy(true); setNotificationError('');
+    fetch('/api/mysql-notifications?limit=50', { headers: { Authorization: 'Bearer ' + token } })
+      .then(async response => { const body = await response.json().catch(() => ({})); if (!response.ok) throw new Error(body.error || 'Notifications could not be be loaded.'); return body; })
+      .then(body => { if (alive) { setNotifications(Array.isArray(body.notifications) ? body.notifications : []); setUnreadCount(Number(body.unreadCount) || 0); } })
+      .catch(error => { if (alive) setNotificationError(error instanceof Error ? error.message : 'Notifications could not be loaded.'); })
+      .finally(() => { if (alive) setNotificationBusy(false); });
+    return () => { alive = false; };
+  }, [active]);
+
+  const markNotificationRead = async (id: string | number) => {
+    const token = getStoredAccessToken(); if (!token) return;
+    try {
+      const response = await fetch('/api/mysql-notifications/' + encodeURIComponent(String(id)) + '/read', { method: 'PATCH', headers: { Authorization: 'Bearer ' + token } });
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(body.error || 'Could not mark notification read.');
+      setNotifications(rows => rows.map(row => String(row.id) === String(id) ? { ...row, read_at: row.read_at || new Date().toISOString() } : row));
+      setUnreadCount(count => Math.max(0, count - 1));
+    } catch (error) { setNotificationError(error instanceof Error ? error.message : 'Could not update notification.'); }
+  };
+
+  const markAllNotificationsRead = async () => {
+    const token = getStoredAccessToken(); if (!token) return;
+    try {
+      const response = await fetch('/api/mysql-notifications/read-all', { method: 'PATCH', headers: { Authorization: 'Bearer ' + token } });
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(body.error || 'Could not mark notifications read.');
+      setNotifications(rows => rows.map(row => ({ ...row, read_at: row.read_at || new Date().toISOString() })));
+      setUnreadCount(0);
+    } catch (error) { setNotificationError(error instanceof Error ? error.message : 'Could not update notifications.'); }
+  };
 
   const runPayoutAction = async (url: string, method: string, body: Record<string, unknown>) => {
     const token = getStoredAccessToken();
@@ -177,6 +219,14 @@ export const PlatformDashboard: React.FC<Props> = ({ role: rawRole, user, onLogo
         {error && <div role="alert" className="mb-5 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">{error}</div>}
         <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">{(loading ? Array.from({length:4},(_,i)=>({label:'Loading metric',value:'—',icon:Activity})) : metrics).map((m,i) => { const Icon=m.icon; return <section key={m.label+i} className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-[0_3px_16px_rgba(18,39,71,.045)]"><div className="flex items-center justify-between"><span className="text-xs font-semibold text-slate-500">{m.label}</span><span className="rounded-xl bg-[#f8f2e4] p-2.5 text-[#a77e24]"><Icon size={18}/></span></div><p className="mt-4 text-[26px] font-extrabold tracking-tight text-[#142747]">{m.value}</p><p className="mt-2 text-[10px] font-medium text-slate-400">Verified from platform API</p></section>; })}</div>
 
+
+        {active === 'Notifications' && <section className="mb-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-3"><div><h2 className="text-lg font-bold text-[#142747]">Notifications</h2><p className="mt-1 text-sm text-slate-500">{unreadCount} unread notifications</p></div><button disabled={notificationBusy || unreadCount === 0} onClick={markAllNotificationsRead} className="rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-[#142747] disabled:opacity-50">Mark all as read</button></div>
+          {notificationError && <p role="alert" className="mb-3 rounded-lg bg-rose-50 p-3 text-sm text-rose-700">{notificationError}</p>}
+          {notificationBusy && <p className="py-3 text-sm text-slate-500">Loading notifications…</p>}
+          <div className="space-y-2">{notifications.map(item => <article key={item.id} className={'rounded-xl border p-4 ' + (item.read_at ? 'border-slate-100 bg-white' : 'border-amber-200 bg-amber-50/40')}><div className="flex flex-wrap items-start justify-between gap-3"><div><p className="font-semibold text-[#142747]">{item.title}</p><p className="mt-1 text-sm text-slate-600">{item.message}</p><p className="mt-2 text-xs text-slate-400">{item.created_at ? new Date(item.created_at).toLocaleString() : '—'}</p></div>{!item.read_at && <button onClick={() => markNotificationRead(item.id)} className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold">Mark read</button>}</div></article>)}</div>
+          {!notifications.length && !notificationBusy && <p className="py-5 text-center text-sm text-slate-500">You have no notifications yet.</p>}
+        </section>}
         {role === 'affiliate' && active === 'Withdrawals' && <section className="mb-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
           <div className="mb-4"><h2 className="text-lg font-bold text-[#142747]">Available commissions</h2><p className="mt-1 text-sm text-slate-500">Only your payable commissions are listed. Referred customers' personal details are never shown.</p></div>
           {payoutError && <p role="alert" className="mb-3 rounded-lg bg-rose-50 p-3 text-sm text-rose-700">{payoutError}</p>}
