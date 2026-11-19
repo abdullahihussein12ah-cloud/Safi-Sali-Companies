@@ -229,17 +229,44 @@ export const clearStoredAccessToken = (): void => {
   localStorage.removeItem('maqsuud_auth_token');
 };
 
+type MySqlPlatformUser = {
+  id: string;
+  name: string;
+  email: string;
+  role: User['role'];
+  businessId: string | null;
+  profileImageUrl: string | null;
+  createdAt: string;
+};
+
+function normalizeMySqlPlatformUser(user: MySqlPlatformUser): User {
+  return {
+    id: String(user.id),
+    name: user.name,
+    email: user.email,
+    role: user.role,
+    phone: '',
+    avatar: user.profileImageUrl || undefined,
+    active: true,
+    createdAt: user.createdAt,
+  };
+}
+
 export async function loginWithPassword(
   email: string,
   password: string
 ): Promise<{ token: string; user: User }> {
-  const result = await request<{ token: string; user: User }>('/auth/login', {
+  const result = await request<{ token: string; user: MySqlPlatformUser }>('/mysql-auth/login', {
     method: 'POST',
     body: JSON.stringify({ email, password }),
   });
+  if (!result.token || !result.user?.id || !result.user?.role) {
+    throw new Error('The MySQL authentication service returned an invalid sign-in response.');
+  }
+  const user = normalizeMySqlPlatformUser(result.user);
   sessionStorage.setItem(ACCESS_TOKEN_KEY, result.token);
   localStorage.removeItem(ACCESS_TOKEN_KEY);
-  return result;
+  return { token: result.token, user };
 }
 
 export async function createBusinessAccount(account: {
@@ -320,8 +347,11 @@ export async function completePasswordReset(token: string, password: string): Pr
 }
 
 export async function getAuthenticatedUser(token: string): Promise<User> {
-  const result = await request<{ user: User }>('/auth/me', {}, token);
-  return result.user;
+  const result = await request<{ user: MySqlPlatformUser }>('/mysql-auth/me', {}, token);
+  if (!result.user?.id || !result.user?.role) {
+    throw new Error('The MySQL authentication service returned an invalid session response.');
+  }
+  return normalizeMySqlPlatformUser(result.user);
 }
 
 export async function getStaffUsers(token: string): Promise<User[]> {
