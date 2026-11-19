@@ -5,8 +5,10 @@ import { fileURLToPath } from 'node:url';
 import mysql from 'mysql2/promise';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
-const schemaPath = path.resolve(here, '../../Database/MySQL/001_affiliate_platform.sql');
-const sql = await readFile(schemaPath, 'utf8');
+const migrationFiles = [
+  '../../Database/MySQL/001_affiliate_platform.sql',
+  '../../Database/MySQL/002_email_verification.sql',
+];
 const pool = await mysql.createConnection({
   host: process.env.MYSQL_HOST,
   port: Number(process.env.MYSQL_PORT || 3306),
@@ -18,10 +20,15 @@ const pool = await mysql.createConnection({
 });
 
 try {
-  await pool.query(sql);
-  console.log('Affiliate platform MySQL schema applied successfully.');
+  for (const relativePath of migrationFiles) {
+    const migrationPath = path.resolve(here, relativePath);
+    const sql = await readFile(migrationPath, 'utf8');
+    await pool.query(sql);
+    console.log(`Applied MySQL migration: ${path.basename(migrationPath)}`);
+  }
+  console.log('SAFI SALI COMPANIES MySQL migrations applied successfully.');
 } catch (error) {
-  console.error('MySQL schema migration failed:', error.message);
+  console.error('MySQL migration failed:', error.message);
   process.exitCode = 1;
 } finally {
   await pool.end();
