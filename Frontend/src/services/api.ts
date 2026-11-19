@@ -282,14 +282,14 @@ export async function createBusinessAccount(account: {
   expiresInSeconds: number;
   resendAfterSeconds: number;
 }> {
-  return request('/auth/register', {
+  return request('/mysql-auth/register', {
     method: 'POST',
     body: JSON.stringify(account),
   });
 }
 
 export async function resendEmailVerificationCode(email: string): Promise<void> {
-  await request<{ message: string }>('/auth/resend-verification-code', {
+  await request<{ message: string }>('/mysql-auth/resend-verification-code', {
     method: 'POST',
     body: JSON.stringify({ email }),
   });
@@ -299,7 +299,7 @@ export async function verifyEmailAddress(
   email: string,
   code: string
 ): Promise<{ token: string; user: User }> {
-  const result = await request<{ token: string; user: User }>('/auth/verify-email', {
+  const result = await request<{ token: string; user: MySqlPlatformUser & { isEmailVerified?: boolean } }>('/mysql-auth/verify-email', {
     method: 'POST',
     body: JSON.stringify({ email, code }),
   });
@@ -308,7 +308,7 @@ export async function verifyEmailAddress(
   }
   sessionStorage.setItem(ACCESS_TOKEN_KEY, result.token);
   localStorage.removeItem(ACCESS_TOKEN_KEY);
-  return result;
+  return { token: result.token, user: normalizeMySqlPlatformUser(result.user) };
 }
 
 export async function requestPasswordReset(email: string): Promise<void> {
