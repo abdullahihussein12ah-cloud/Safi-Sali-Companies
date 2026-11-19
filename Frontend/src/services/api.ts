@@ -1081,3 +1081,65 @@ export async function submitLicensePaymentRequest(
   }, token);
   return result.license;
 }
+
+
+export type AffiliatePayout = {
+  id: number | string;
+  amount: string;
+  currency: string;
+  method: string;
+  status: 'requested' | 'approved' | 'processing' | 'paid' | 'rejected' | 'failed';
+  requested_at: string;
+  processed_at: string | null;
+  external_reference: string | null;
+};
+
+export async function requestAffiliatePayout(
+  token: string,
+  commissionIds: Array<string | number>,
+  method: string,
+  destination: string
+): Promise<{ payoutId: string; amount: string; currency: string; status: string }> {
+  return request('/mysql-payouts/request', {
+    method: 'POST',
+    body: JSON.stringify({ commissionIds, method, destination }),
+  }, token);
+}
+
+export async function getMyAffiliatePayouts(token: string): Promise<AffiliatePayout[]> {
+  const result = await request<{ payouts: AffiliatePayout[] }>('/mysql-payouts/mine', {}, token);
+  if (!Array.isArray(result.payouts)) throw new Error('The server returned an invalid payout list.');
+  return result.payouts;
+}
+
+export async function getFinancePayouts(
+  token: string,
+  status?: AffiliatePayout['status']
+): Promise<AffiliatePayout[]> {
+  const query = status ? '?status=' + encodeURIComponent(status) : '';
+  const result = await request<{ payouts: AffiliatePayout[] }>('/mysql-payouts' + query, {}, token);
+  if (!Array.isArray(result.payouts)) throw new Error('The server returned an invalid finance payout list.');
+  return result.payouts;
+}
+
+export async function decideFinancePayout(
+  token: string,
+  payoutId: string | number,
+  decision: 'approve' | 'reject'
+): Promise<{ payoutId: string; status: string }> {
+  return request('/mysql-payouts/' + encodeURIComponent(String(payoutId)) + '/decision', {
+    method: 'PATCH',
+    body: JSON.stringify({ decision }),
+  }, token);
+}
+
+export async function markFinancePayoutPaid(
+  token: string,
+  payoutId: string | number,
+  externalReference: string
+): Promise<{ payoutId: string; status: string; externalReference: string }> {
+  return request('/mysql-payouts/' + encodeURIComponent(String(payoutId)) + '/paid', {
+    method: 'POST',
+    body: JSON.stringify({ externalReference }),
+  }, token);
+}
