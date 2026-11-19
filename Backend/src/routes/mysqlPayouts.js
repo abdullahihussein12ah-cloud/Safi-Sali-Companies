@@ -2,6 +2,17 @@ import { Router } from 'express';
 import { getMySqlPool } from '../config/mysql.js';
 import { createMySqlAuthenticate, requireMySqlRoles } from '../security/mysqlAuth.js';
 
+function decimalToCents(value) {
+  const text = String(value);
+  const match = /^(0|[1-9]\\d{0,11})(?:\\.(\\d{1,2}))?$/.exec(text);
+  if (!match) throw new Error('Invalid DECIMAL(14,2) amount from database.');
+  return BigInt(match[1]) * 100n + BigInt((match[2] || '').padEnd(2, '0') || '0');
+}
+
+function formatCents(cents) {
+  return (cents / 100n).toString() + '.' + (cents % 100n).toString().padStart(2, '0');
+}
+
 export function createMySqlPayoutRouter(secret) {
   const router = Router();
   const auth = createMySqlAuthenticate(secret);
@@ -34,10 +45,15 @@ export function createMySqlPayoutRouter(secret) {
         await connection.rollback();
         return res.status(400).json({ error: 'A payout must contain commissions from one business and one currency.' });
       }
-      const amount = rows.reduce((sum, row) => sum + Math.round(Number(row.commission_amount) * 100), 0);
-      if (!Number.isSafeInteger(amount) || amount <= 0) {
+      let amountCents;
+      try { amountCents = rows.reduce((sum, row) => sum + decimalToCents(row.commission_amount), 0n); }
+      catch {
         await connection.rollback();
-        return res.status(400).json({ error: 'The payout amount is invalid.' });
+        return res.status(500).json({ error: 'A commission amount has an invalid database value.' });
+      }
+      if (amountCents <= 0n || amountCents > 99999999999999n) {
+        await connection.rollback();
+        return res.status(400).json({ error: 'The payout amount is outside the supported DECIMAL(14,2) range.' });
       }
       const method = typeof req.body?.method === 'string' ? req.body.method.trim().slice(0,40) : '';
       const destination = typeof req.body?.destination === 'string' ? req.body.destination.trim().slice(0,190) : '';
@@ -48,7 +64,7 @@ export function createMySqlPayoutRouter(secret) {
       const businessId = rows[0].business_id;
       const [payout] = await connection.execute(
         "INSERT INTO payouts (affiliate_user_id,business_id,amount,currency,method,destination_ref,status) VALUES (?,?,?,?,?,?,'requested')",
-        [req.auth.sub,businessId,(amount / 100).toFixed(2),rows[0].currency,method,destination],
+        [req.auth.sub,businessId,formatCents(amountCents),rows[0].currency,method,destination],
       );
       for (const row of rows) {
         await connection.execute(
@@ -62,7 +78,7 @@ export function createMySqlPayoutRouter(secret) {
         [req.auth.sub,businessId],
       );
       await connection.commit();
-      return res.status(201).json({ payoutId: String(payout.insertId), amount: (amount / 100).toFixed(2), currency: rows[0].currency, status: 'requested' });
+      return res.status(201).json({ payoutId: String(payout.insertId), amount: formatCents(amountCents), currency: rows[0].currency, status: 'requested' });
     } catch (error) {
       await connection.rollback().catch(() => {});
       return next(error);
