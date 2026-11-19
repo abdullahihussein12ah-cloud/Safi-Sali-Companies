@@ -47,7 +47,7 @@ export function createMySqlAuthRouter(secret) {
       }
 
       const [rows] = await getMySqlPool().execute(
-        'SELECT id, business_id, full_name, email, password_hash, role, status, profile_image_url FROM users WHERE email = ? LIMIT 1',
+        'SELECT id, business_id, full_name, email, password_hash, role, status, profile_image_url, created_at FROM users WHERE email = ? LIMIT 1',
         [email],
       );
       const user = rows[0];
@@ -71,6 +71,7 @@ export function createMySqlAuthRouter(secret) {
           role: user.role,
           businessId: user.business_id == null ? null : String(user.business_id),
           profileImageUrl: user.profile_image_url,
+          createdAt: user.created_at instanceof Date ? user.created_at.toISOString() : new Date(user.created_at).toISOString(),
         },
       });
     } catch (error) {
@@ -81,7 +82,7 @@ export function createMySqlAuthRouter(secret) {
   router.get('/me', authenticate, async (req, res, next) => {
     try {
       const [rows] = await getMySqlPool().execute(
-        'SELECT id, business_id, full_name, email, role, status, profile_image_url FROM users WHERE id = ? LIMIT 1',
+        'SELECT id, business_id, full_name, email, role, status, profile_image_url, created_at FROM users WHERE id = ? LIMIT 1',
         [req.auth.sub],
       );
       const user = rows[0];
@@ -96,6 +97,7 @@ export function createMySqlAuthRouter(secret) {
           role: user.role,
           businessId: user.business_id == null ? null : String(user.business_id),
           profileImageUrl: user.profile_image_url,
+          createdAt: user.created_at instanceof Date ? user.created_at.toISOString() : new Date(user.created_at).toISOString(),
         },
       });
     } catch (error) {
