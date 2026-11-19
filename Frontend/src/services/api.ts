@@ -229,17 +229,44 @@ export const clearStoredAccessToken = (): void => {
   localStorage.removeItem('maqsuud_auth_token');
 };
 
+type MySqlPlatformUser = {
+  id: string;
+  name: string;
+  email: string;
+  role: User['role'];
+  businessId: string | null;
+  profileImageUrl: string | null;
+  createdAt: string;
+};
+
+function normalizeMySqlPlatformUser(user: MySqlPlatformUser): User {
+  return {
+    id: String(user.id),
+    name: user.name,
+    email: user.email,
+    role: user.role,
+    phone: '',
+    avatar: user.profileImageUrl || undefined,
+    active: true,
+    createdAt: user.createdAt,
+  };
+}
+
 export async function loginWithPassword(
   email: string,
   password: string
 ): Promise<{ token: string; user: User }> {
-  const result = await request<{ token: string; user: User }>('/auth/login', {
+  const result = await request<{ token: string; user: MySqlPlatformUser }>('/mysql-auth/login', {
     method: 'POST',
     body: JSON.stringify({ email, password }),
   });
+  if (!result.token || !result.user?.id || !result.user?.role) {
+    throw new Error('The MySQL authentication service returned an invalid sign-in response.');
+  }
+  const user = normalizeMySqlPlatformUser(result.user);
   sessionStorage.setItem(ACCESS_TOKEN_KEY, result.token);
   localStorage.removeItem(ACCESS_TOKEN_KEY);
-  return result;
+  return { token: result.token, user };
 }
 
 export async function createBusinessAccount(account: {
@@ -255,14 +282,14 @@ export async function createBusinessAccount(account: {
   expiresInSeconds: number;
   resendAfterSeconds: number;
 }> {
-  return request('/auth/register', {
+  return request('/mysql-auth/register', {
     method: 'POST',
     body: JSON.stringify(account),
   });
 }
 
 export async function resendEmailVerificationCode(email: string): Promise<void> {
-  await request<{ message: string }>('/auth/resend-verification-code', {
+  await request<{ message: string }>('/mysql-auth/resend-verification-code', {
     method: 'POST',
     body: JSON.stringify({ email }),
   });
@@ -272,7 +299,7 @@ export async function verifyEmailAddress(
   email: string,
   code: string
 ): Promise<{ token: string; user: User }> {
-  const result = await request<{ token: string; user: User }>('/auth/verify-email', {
+  const result = await request<{ token: string; user: MySqlPlatformUser & { isEmailVerified?: boolean } }>('/mysql-auth/verify-email', {
     method: 'POST',
     body: JSON.stringify({ email, code }),
   });
@@ -281,18 +308,18 @@ export async function verifyEmailAddress(
   }
   sessionStorage.setItem(ACCESS_TOKEN_KEY, result.token);
   localStorage.removeItem(ACCESS_TOKEN_KEY);
-  return result;
+  return { token: result.token, user: normalizeMySqlPlatformUser(result.user) };
 }
 
 export async function requestPasswordReset(email: string): Promise<void> {
-  await request<{ message: string }>('/auth/forgot-password', {
+  await request<{ message: string }>('/mysql-auth/forgot-password', {
     method: 'POST',
     body: JSON.stringify({ email }),
   });
 }
 
 export async function resendPasswordResetCode(email: string): Promise<void> {
-  await request<{ message: string }>('/auth/resend-reset-code', {
+  await request<{ message: string }>('/mysql-auth/resend-reset-code', {
     method: 'POST',
     body: JSON.stringify({ email }),
   });
@@ -302,7 +329,7 @@ export async function verifyPasswordResetCode(
   email: string,
   code: string
 ): Promise<string> {
-  const result = await request<{ resetToken: string }>('/auth/verify-reset-code', {
+  const result = await request<{ resetToken: string }>('/mysql-auth/verify-reset-code', {
     method: 'POST',
     body: JSON.stringify({ email, code }),
   });
@@ -313,15 +340,18 @@ export async function verifyPasswordResetCode(
 }
 
 export async function completePasswordReset(token: string, password: string): Promise<void> {
-  await request<{ message: string }>('/auth/reset-password', {
+  await request<{ message: string }>('/mysql-auth/reset-password', {
     method: 'POST',
     body: JSON.stringify({ token, password }),
   });
 }
 
 export async function getAuthenticatedUser(token: string): Promise<User> {
-  const result = await request<{ user: User }>('/auth/me', {}, token);
-  return result.user;
+  const result = await request<{ user: MySqlPlatformUser }>('/mysql-auth/me', {}, token);
+  if (!result.user?.id || !result.user?.role) {
+    throw new Error('The MySQL authentication service returned an invalid session response.');
+  }
+  return normalizeMySqlPlatformUser(result.user);
 }
 
 export async function getStaffUsers(token: string): Promise<User[]> {
@@ -1050,4 +1080,66 @@ export async function submitLicensePaymentRequest(
     body: JSON.stringify({ planId, trxId }),
   }, token);
   return result.license;
+}
+
+
+export type AffiliatePayout = {
+  id: number | string;
+  amount: string;
+  currency: string;
+  method: string;
+  status: 'requested' | 'approved' | 'processing' | 'paid' | 'rejected' | 'failed';
+  requested_at: string;
+  processed_at: string | null;
+  external_reference: string | null;
+};
+
+export async function requestAffiliatePayout(
+  token: string,
+  commissionIds: Array<string | number>,
+  method: string,
+  destination: string
+): Promise<{ payoutId: string; amount: string; currency: string; status: string }> {
+  return request('/mysql-payouts/request', {
+    method: 'POST',
+    body: JSON.stringify({ commissionIds, method, destination }),
+  }, token);
+}
+
+export async function getMyAffiliatePayouts(token: string): Promise<AffiliatePayout[]> {
+  const result = await request<{ payouts: AffiliatePayout[] }>('/mysql-payouts/mine', {}, token);
+  if (!Array.isArray(result.payouts)) throw new Error('The server returned an invalid payout list.');
+  return result.payouts;
+}
+
+export async function getFinancePayouts(
+  token: string,
+  status?: AffiliatePayout['status']
+): Promise<AffiliatePayout[]> {
+  const query = status ? '?status=' + encodeURIComponent(status) : '';
+  const result = await request<{ payouts: AffiliatePayout[] }>('/mysql-payouts' + query, {}, token);
+  if (!Array.isArray(result.payouts)) throw new Error('The server returned an invalid finance payout list.');
+  return result.payouts;
+}
+
+export async function decideFinancePayout(
+  token: string,
+  payoutId: string | number,
+  decision: 'approve' | 'reject'
+): Promise<{ payoutId: string; status: string }> {
+  return request('/mysql-payouts/' + encodeURIComponent(String(payoutId)) + '/decision', {
+    method: 'PATCH',
+    body: JSON.stringify({ decision }),
+  }, token);
+}
+
+export async function markFinancePayoutPaid(
+  token: string,
+  payoutId: string | number,
+  externalReference: string
+): Promise<{ payoutId: string; status: string; externalReference: string }> {
+  return request('/mysql-payouts/' + encodeURIComponent(String(payoutId)) + '/paid', {
+    method: 'POST',
+    body: JSON.stringify({ externalReference }),
+  }, token);
 }

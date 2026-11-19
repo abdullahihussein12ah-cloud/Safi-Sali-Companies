@@ -429,7 +429,7 @@ export const LoginPage: React.FC = () => {
       }
 
       const result = await loginWithPassword(email.trim(), password);
-      if (result.user.role !== 'super_admin') {
+      if (!['super_admin', 'business_admin', 'affiliate', 'finance_admin'].includes(result.user.role)) {
         await AppStore.loadWorkspace(result.user, result.token);
       }
       login(result.user);

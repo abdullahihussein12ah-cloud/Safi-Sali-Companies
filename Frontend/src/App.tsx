@@ -29,6 +29,7 @@ import { SettingsPage } from './components/settings/SettingsPage';
 import { LoginPage } from './components/auth/LoginPage';
 import { AccountPage } from './components/account/AccountPage';
 import { SuperAdminPortal } from './components/super-admin/SuperAdminPortal';
+import { PlatformDashboard } from './components/platform/PlatformDashboard';
 import { RecyclingBinPage } from './components/recycling-bin/RecyclingBinPage';
 import { getTabPermission, hasAnyPermission, isBusinessOwnerRole } from './services/permissions';
 
@@ -76,6 +77,7 @@ const AppContent: React.FC = () => {
     authLoading,
     permissions,
     permissionsReady,
+    logout,
   } = useApp();
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -140,6 +142,10 @@ const AppContent: React.FC = () => {
         <ToastContainer />
       </>
     );
+  }
+
+  if (['super_admin', 'business_admin', 'affiliate', 'finance_admin'].includes(activeUser.role)) {
+    return <PlatformDashboard role={activeUser.role} user={activeUser} onLogout={logout} />;
   }
 
   if (activeUser.role === 'super_admin') {

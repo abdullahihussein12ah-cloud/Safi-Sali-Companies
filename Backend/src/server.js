@@ -4,17 +4,12 @@ import cors from 'cors';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { connectDatabase } from './config/database.js';
-import { createAuthenticate } from './middleware/authenticate.js';
-import { createAuthRouter, ensureBootstrapAdmin } from './routes/auth.js';
-import {
-  createWorkspaceRouter,
-  monitorExpiredLicenses,
-  requireActiveLicense,
-} from './routes/workspace.js';
-import { createAccountingRouter } from './routes/accounting.js';
-import { createSuperAdminRouter } from './routes/superAdmin.js';
-import { ensureSubscriptionPlans } from './models/SubscriptionPlan.js';
+import { verifyMySqlConnection } from './config/mysql.js';
+import { createMySqlAuthRouter } from './routes/mysqlAuth.js';
+import { createMySqlDashboardRouter } from './routes/mysqlDashboards.js';
+import { createMySqlReferralRouter } from './routes/mysqlReferrals.js';
+import { createMySqlNotificationRouter } from './routes/mysqlNotifications.js';
+import { createMySqlPayoutRouter } from './routes/mysqlPayouts.js';
 
 const app = express();
 const frontendDistPath = path.resolve(
@@ -54,12 +49,11 @@ app.get('/api/health', (_req, res) => {
   res.json({ status: 'ok', service: 'Safi Sali Companies API' });
 });
 
-const authenticate = createAuthenticate(tokenSecret);
-app.use('/api/auth/users', authenticate, requireActiveLicense);
-app.use('/api/auth', createAuthRouter(tokenSecret, authenticate));
-app.use('/api/super-admin', authenticate, createSuperAdminRouter());
-app.use(['/api/workspace', '/workspace'], authenticate, createWorkspaceRouter());
-app.use('/api/accounting', authenticate, requireActiveLicense, createAccountingRouter());
+app.use('/api/mysql-auth', createMySqlAuthRouter(tokenSecret));
+app.use('/api/mysql-dashboards', createMySqlDashboardRouter(tokenSecret));
+app.use('/api/mysql-referrals', createMySqlReferralRouter(tokenSecret));
+app.use('/api/mysql-notifications', createMySqlNotificationRouter(tokenSecret));
+app.use('/api/mysql-payouts', createMySqlPayoutRouter(tokenSecret));
 
 app.use('/api', (_req, res) => {
   res.status(404).json({ error: 'API route not found.' });
@@ -92,18 +86,10 @@ app.use((error, _req, res, _next) => {
 });
 
 const port = process.env.PORT || 5000;
-connectDatabase()
-  .then(ensureSubscriptionPlans)
-  .then(ensureBootstrapAdmin)
-  .then(() => {
-    const expirationSweep = () => {
-      monitorExpiredLicenses().catch((error) => {
-        console.error('License expiration monitor failed:', error);
-      });
-    };
-    expirationSweep();
-    setInterval(expirationSweep, 60_000).unref();
-    app.listen(port, () => console.log(`API listening on http://localhost:${port}`));
+verifyMySqlConnection()
+  .then((database) => {
+    console.log(`MySQL connected: ${database.version}`);
+    app.listen(port, () => console.log(`SAFI SALI COMPANIES API listening on http://localhost:${port}`));
   })
   .catch((error) => {
     console.error('Startup failed:', error.message);
