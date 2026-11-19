@@ -4,7 +4,7 @@ import { createMySqlAuthenticate, requireMySqlRoles } from '../security/mysqlAut
 
 function decimalToCents(value) {
   const text = String(value);
-  const match = /^(0|[1-9]\\d{0,11})(?:\\.(\\d{1,2}))?$/.exec(text);
+  const match = /^(0|[1-9]\d{0,11})(?:\.(\d{1,2}))?$/.exec(text);
   if (!match) throw new Error('Invalid DECIMAL(14,2) amount from database.');
   return BigInt(match[1]) * 100n + BigInt((match[2] || '').padEnd(2, '0') || '0');
 }
