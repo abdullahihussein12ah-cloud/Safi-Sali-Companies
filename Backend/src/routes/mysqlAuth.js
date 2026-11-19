@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { createHash, randomInt } from 'node:crypto';
+import { createHash, randomBytes, randomInt } from 'node:crypto';
 import { createTransport } from 'nodemailer';
 import { getMySqlPool } from '../config/mysql.js';
 import {
