@@ -147,7 +147,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       }
       try {
         const user = await getAuthenticatedUser(token);
-        if (user.role !== 'super_admin') await AppStore.loadWorkspace(user, token);
+        if (!['super_admin', 'business_admin', 'affiliate', 'finance_admin'].includes(user.role)) {
+          await AppStore.loadWorkspace(user, token);
+        }
         if (mounted) {
           authenticatedUserRef.current = user;
           setSimulatedRole(null);
@@ -315,6 +317,13 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       setPermissions([]);
       setPermissionsLoading(false);
       setPermissionsReady(false);
+      return;
+    }
+
+    if (['super_admin', 'business_admin', 'affiliate', 'finance_admin'].includes(activeUser.role)) {
+      setPermissions([]);
+      setPermissionsLoading(false);
+      setPermissionsReady(true);
       return;
     }
 
