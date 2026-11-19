@@ -8,7 +8,8 @@
     "build": "node ../Frontend/node_modules/vite/bin/vite.js build ../Frontend --config ../Frontend/vite.config.ts",
     "start": "node src/server.js",
     "migrate:mysql": "node scripts/migrate-mysql.js",
-    "test": "node --test"
+    "test": "node --test",
+    "test:mysql": "node --test test/mysqlDatabase.integration.test.js"
   },
   "dependencies": {
     "cors": "^2.8.5",
