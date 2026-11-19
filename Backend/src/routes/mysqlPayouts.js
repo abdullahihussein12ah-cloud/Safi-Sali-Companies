@@ -2,14 +2,14 @@ import { Router } from 'express';
 import { getMySqlPool } from '../config/mysql.js';
 import { createMySqlAuthenticate, requireMySqlRoles } from '../security/mysqlAuth.js';
 
-function decimalToCents(value) {
+export function decimalToCents(value) {
   const text = String(value);
   const match = /^(0|[1-9]\d{0,11})(?:\.(\d{1,2}))?$/.exec(text);
   if (!match) throw new Error('Invalid DECIMAL(14,2) amount from database.');
   return BigInt(match[1]) * 100n + BigInt((match[2] || '').padEnd(2, '0') || '0');
 }
 
-function formatCents(cents) {
+export function formatCents(cents) {
   return (cents / 100n).toString() + '.' + (cents % 100n).toString().padStart(2, '0');
 }
 
@@ -115,7 +115,7 @@ export function createMySqlPayoutRouter(secret) {
       let where = '';
       if (status) { where = 'WHERE p.status=?'; params.push(status); }
       const [rows] = await getMySqlPool().execute(
-        `SELECT p.id,p.affiliate_user_id,p.business_id,p.amount,p.currency,p.method,p.status,p.requested_at,p.processed_at,p.external_reference,
+        `SELECT p.id,p.affiliate_user_id,p.business_id,p.amount,p.currency,p.method,p.destination_ref,p.status,p.requested_at,p.processed_at,p.external_reference,
                 (SELECT COUNT(*) FROM payout_commissions pc WHERE pc.payout_id=p.id) AS commission_count
          FROM payouts p ${where} ORDER BY p.requested_at ASC LIMIT 200`,
         params,
