@@ -69,6 +69,17 @@ export function createMySqlPayoutRouter(secret) {
     } finally { connection.release(); }
   });
 
+
+  router.get('/available', auth, requireMySqlRoles('affiliate'), async (req, res, next) => {
+    try {
+      const [rows] = await getMySqlPool().execute(
+        "SELECT c.id,c.commission_amount AS amount,c.currency,s.business_id,s.external_order_ref FROM commissions c JOIN sales s ON s.id=c.sale_id WHERE c.affiliate_user_id=? AND c.status='payable' ORDER BY c.id DESC LIMIT 200",
+        [req.auth.sub],
+      );
+      return res.json({ commissions: rows });
+    } catch (error) { return next(error); }
+  });
+
   router.get('/mine', auth, requireMySqlRoles('affiliate'), async (req, res, next) => {
     try {
       const [rows] = await getMySqlPool().execute(
