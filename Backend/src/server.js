@@ -9,6 +9,7 @@ import { createMySqlAuthRouter } from './routes/mysqlAuth.js';
 import { createMySqlDashboardRouter } from './routes/mysqlDashboards.js';
 import { createMySqlReferralRouter } from './routes/mysqlReferrals.js';
 import { createMySqlNotificationRouter } from './routes/mysqlNotifications.js';
+import { createMySqlPayoutRouter } from './routes/mysqlPayouts.js';
 
 const app = express();
 const frontendDistPath = path.resolve(
@@ -52,6 +53,7 @@ app.use('/api/mysql-auth', createMySqlAuthRouter(tokenSecret));
 app.use('/api/mysql-dashboards', createMySqlDashboardRouter(tokenSecret));
 app.use('/api/mysql-referrals', createMySqlReferralRouter(tokenSecret));
 app.use('/api/mysql-notifications', createMySqlNotificationRouter(tokenSecret));
+app.use('/api/mysql-payouts', createMySqlPayoutRouter(tokenSecret));
 
 app.use('/api', (_req, res) => {
   res.status(404).json({ error: 'API route not found.' });
