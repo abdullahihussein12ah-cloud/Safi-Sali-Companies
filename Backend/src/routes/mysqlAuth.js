@@ -124,7 +124,7 @@ export function createMySqlAuthRouter(secret) {
     try {
       const email = typeof req.body?.email === 'string' ? req.body.email.trim().toLowerCase() : '';
       const code = typeof req.body?.code === 'string' ? req.body.code.trim() : '';
-      if (!/^\\d{6}$/.test(code)) return res.status(400).json({ error: 'Enter the six-digit verification code.' });
+      if (!/^\d{6}$/.test(code)) return res.status(400).json({ error: 'Enter the six-digit verification code.' });
       await connection.beginTransaction();
       const [rows] = await connection.execute(
         "SELECT u.id, u.business_id, u.full_name, u.email, u.role, u.profile_image_url, u.created_at, v.code_hash, v.expires_at, v.attempts FROM users u JOIN email_verification_codes v ON v.user_id = u.id WHERE u.email = ? AND u.status = 'invited' FOR UPDATE",
