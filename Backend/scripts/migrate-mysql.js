@@ -9,6 +9,7 @@ const migrationFiles = [
   '../../Database/MySQL/001_affiliate_platform.sql',
   '../../Database/MySQL/002_email_verification.sql',
   '../../Database/MySQL/003_password_reset.sql',
+  '../../Database/MySQL/004_payout_workflow.sql',
 ];
 const pool = await mysql.createConnection({
   host: process.env.MYSQL_HOST,
