@@ -29,6 +29,15 @@ export const PlatformDashboard: React.FC<Props> = ({ role: rawRole, user, onLogo
   const [active, setActive] = useState('Overview');
   const [query, setQuery] = useState('');
   const [mobileNav, setMobileNav] = useState(false);
+  const [payoutRows, setPayoutRows] = useState<any[]>([]);
+  const [payableRows, setPayableRows] = useState<any[]>([]);
+  const [selectedCommissionIds, setSelectedCommissionIds] = useState<string[]>([]);
+  const [payoutBusy, setPayoutBusy] = useState(false);
+  const [payoutError, setPayoutError] = useState('');
+  const [paymentMethod, setPaymentMethod] = useState('Bank transfer');
+  const [paymentDestination, setPaymentDestination] = useState('');
+  const [paymentReference, setPaymentReference] = useState('');
+
 
   useEffect(() => {
     let alive = true;
@@ -45,6 +54,74 @@ export const PlatformDashboard: React.FC<Props> = ({ role: rawRole, user, onLogo
       .finally(() => { if (alive) setLoading(false); });
     return () => { alive = false; };
   }, [config.endpoint]);
+
+
+  useEffect(() => {
+    const affiliatePage = role === 'affiliate' && active === 'Withdrawals';
+    const financePage = role === 'finance_admin' && active === 'Payout Requests';
+    if (!affiliatePage && !financePage) return;
+    const token = getStoredAccessToken();
+    if (!token) return;
+    let alive = true;
+    setPayoutBusy(true); setPayoutError('');
+    const headers = { Authorization: 'Bearer ' + token };
+    const tasks = affiliatePage
+      ? [fetch('/api/mysql-payouts/available', { headers }).then(async x => { const b=await x.json(); if(!x.ok) throw new Error(b.error || 'Could not load payable commissions'); return b.commissions || []; }),
+         fetch('/api/mysql-payouts/mine', { headers }).then(async x => { const b=await x.json(); if(!x.ok) throw new Error(b.error || 'Could not load withdrawals'); return b.payouts || []; })]
+      : [fetch('/api/mysql-payouts', { headers }).then(async x => { const b=await x.json(); if(!x.ok) throw new Error(b.error || 'Could not load payout queue'); return b.payouts || []; })];
+    Promise.all(tasks).then(values => {
+      if (!alive) return;
+      if (affiliatePage) { setPayableRows(values[0]); setPayoutRows(values[1]); }
+      else setPayoutRows(values[0]);
+    }).catch(e => { if (alive) setPayoutError(e instanceof Error ? e.message : 'Payout data could not be loaded.'); })
+      .finally(() => { if (alive) setPayoutBusy(false); });
+    return () => { alive = false; };
+  }, [role, active]);
+
+  const runPayoutAction = async (url: string, method: string, body: Record<string, unknown>) => {
+    const token = getStoredAccessToken();
+    if (!token) throw new Error('Please sign in again.');
+    const response = await fetch(url, { method, headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(result.error || 'Payout action failed.');
+    return result;
+  };
+
+  const submitPayoutRequest = async () => {
+    setPayoutBusy(true); setPayoutError('');
+    try {
+      await runPayoutAction('/api/mysql-payouts/request', 'POST', { commissionIds: selectedCommissionIds, method: paymentMethod, destination: paymentDestination });
+      setSelectedCommissionIds([]); setPaymentDestination('');
+      const token = getStoredAccessToken();
+      const headers = { Authorization: 'Bearer ' + token };
+      const [a, m] = await Promise.all([
+        fetch('/api/mysql-payouts/available', { headers }).then(x => x.json()),
+        fetch('/api/mysql-payouts/mine', { headers }).then(x => x.json())
+      ]);
+      setPayableRows(a.commissions || []); setPayoutRows(m.payouts || []);
+    } catch(e) { setPayoutError(e instanceof Error ? e.message : 'Withdrawal request failed.'); }
+    finally { setPayoutBusy(false); }
+  };
+
+  const reviewPayout = async (id: string | number, decision: 'approve' | 'reject') => {
+    setPayoutBusy(true); setPayoutError('');
+    try {
+      await runPayoutAction('/api/mysql-payouts/' + encodeURIComponent(String(id)) + '/decision', 'PATCH', { decision });
+      setPayoutRows(rows => rows.map(row => String(row.id) === String(id) ? { ...row, status: decision === 'approve' ? 'approved' : 'rejected' } : row));
+    } catch(e) { setPayoutError(e instanceof Error ? e.message : 'Review failed.'); }
+    finally { setPayoutBusy(false); }
+  };
+
+  const confirmPayoutPaid = async (id: string | number) => {
+    if (!paymentReference.trim()) { setPayoutError('Enter the external payment reference first.'); return; }
+    setPayoutBusy(true); setPayoutError('');
+    try {
+      await runPayoutAction('/api/mysql-payouts/' + encodeURIComponent(String(id)) + '/paid', 'POST', { externalReference: paymentReference.trim() });
+      setPayoutRows(rows => rows.map(row => String(row.id) === String(id) ? { ...row, status: 'paid', external_reference: paymentReference.trim() } : row));
+      setPaymentReference('');
+    } catch(e) { setPayoutError(e instanceof Error ? e.message : 'Payment confirmation failed.'); }
+    finally { setPayoutBusy(false); }
+  };
 
   const metrics = useMemo(() => {
     if (!data) return [];
@@ -99,6 +176,28 @@ export const PlatformDashboard: React.FC<Props> = ({ role: rawRole, user, onLogo
         <div className="mb-7 flex flex-col justify-between gap-4 md:flex-row md:items-end"><div><p className="text-xs font-semibold text-slate-500">Good day, {user.name || 'Administrator'}</p><h1 className="mt-1 text-2xl font-extrabold tracking-tight text-[#142747] md:text-[30px]">{active === 'Overview' ? config.title : active}</h1><p className="mt-1 text-sm text-slate-500">{config.subtitle}</p></div><div className="flex items-center gap-2"><span className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-600">Live MySQL data</span><button onClick={() => window.location.reload()} className="rounded-lg bg-[#142747] px-4 py-2.5 text-xs font-bold text-white hover:bg-[#203b68]"><Activity size={14} className="mr-2 inline"/>Refresh</button></div></div>
         {error && <div role="alert" className="mb-5 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">{error}</div>}
         <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">{(loading ? Array.from({length:4},(_,i)=>({label:'Loading metric',value:'—',icon:Activity})) : metrics).map((m,i) => { const Icon=m.icon; return <section key={m.label+i} className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-[0_3px_16px_rgba(18,39,71,.045)]"><div className="flex items-center justify-between"><span className="text-xs font-semibold text-slate-500">{m.label}</span><span className="rounded-xl bg-[#f8f2e4] p-2.5 text-[#a77e24]"><Icon size={18}/></span></div><p className="mt-4 text-[26px] font-extrabold tracking-tight text-[#142747]">{m.value}</p><p className="mt-2 text-[10px] font-medium text-slate-400">Verified from platform API</p></section>; })}</div>
+
+        {role === 'affiliate' && active === 'Withdrawals' && <section className="mb-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+          <div className="mb-4"><h2 className="text-lg font-bold text-[#142747]">Available commissions</h2><p className="mt-1 text-sm text-slate-500">Only your payable commissions are listed. Referred customers' personal details are never shown.</p></div>
+          {payoutError && <p role="alert" className="mb-3 rounded-lg bg-rose-50 p-3 text-sm text-rose-700">{payoutError}</p>}
+          {payoutBusy && <p className="py-3 text-sm text-slate-500">Loading payout information…</p>}
+          <div className="space-y-2">{payableRows.map(row => <label key={row.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-100 p-3 text-sm">
+            <span className="flex items-center gap-3"><input type="checkbox" checked={selectedCommissionIds.includes(String(row.id))} onChange={e => setSelectedCommissionIds(ids => e.target.checked ? [...ids,String(row.id)] : ids.filter(id => id !== String(row.id)))} /><span><b>Commission #{row.id}</b><span className="ml-2 text-slate-500">Sale {row.external_order_ref || '—'}</span></span></span>
+            <b>{row.currency} {fmt(row.amount)}</b>
+          </label>)}</div>
+          {!payableRows.length && !payoutBusy && <p className="py-3 text-sm text-slate-500">No payable commissions are currently available.</p>}
+          <div className="mt-4 grid gap-3 md:grid-cols-3"><select value={paymentMethod} onChange={e => setPaymentMethod(e.target.value)} className="rounded-lg border border-slate-200 px-3 py-2 text-sm"><option>Bank transfer</option><option>Mobile money</option><option>Other</option></select><input value={paymentDestination} onChange={e => setPaymentDestination(e.target.value)} placeholder="Payment destination / account reference" className="rounded-lg border border-slate-200 px-3 py-2 text-sm" /><button disabled={payoutBusy || !selectedCommissionIds.length || !paymentDestination.trim()} onClick={submitPayoutRequest} className="rounded-lg bg-[#142747] px-4 py-2 text-sm font-bold text-white disabled:opacity-50">Request withdrawal ({selectedCommissionIds.length})</button></div>
+          <h3 className="mb-2 mt-7 font-bold text-[#142747]">My withdrawal history</h3>
+          <div className="overflow-x-auto"><table className="w-full text-left text-sm"><thead><tr className="border-b text-xs text-slate-500"><th className="p-2">ID</th><th className="p-2">Amount</th><th className="p-2">Method</th><th className="p-2">Status</th><th className="p-2">Requested</th></tr></thead><tbody>{payoutRows.map(row => <tr key={row.id} className="border-b border-slate-100"><td className="p-2">#{row.id}</td><td className="p-2">{row.currency} {fmt(row.amount)}</td><td className="p-2">{row.method}</td><td className="p-2 capitalize">{row.status}</td><td className="p-2">{row.requested_at ? new Date(row.requested_at).toLocaleDateString() : '—'}</td></tr>)}</tbody></table></div>
+        </section>}
+        {role === 'finance_admin' && active === 'Payout Requests' && <section className="mb-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+          <div className="mb-4"><h2 className="text-lg font-bold text-[#142747]">Finance payout queue</h2><p className="mt-1 text-sm text-slate-500">Review requests, approve or reject them, and record payment references after funds are sent.</p></div>
+          {payoutError && <p role="alert" className="mb-3 rounded-lg bg-rose-50 p-3 text-sm text-rose-700">{payoutError}</p>}
+          {payoutBusy && <p className="py-3 text-sm text-slate-500">Loading payout queue…</p>}
+          <div className="space-y-3">{payoutRows.map(row => <article key={row.id} className="rounded-xl border border-slate-100 p-4"><div className="flex flex-wrap items-start justify-between gap-3"><div><p className="font-bold text-[#142747]">Withdrawal #{row.id}</p><p className="mt-1 text-sm text-slate-500">Affiliate ID: {row.affiliate_user_id} · Business ID: {row.business_id}</p><p className="mt-1 text-sm">{row.method} · {row.currency} {fmt(row.amount)}</p><p className="mt-1 text-xs capitalize text-slate-500">Status: {row.status} · {row.commission_count} commissions</p></div><div className="flex flex-wrap gap-2">{row.status === 'requested' && <><button disabled={payoutBusy} onClick={() => reviewPayout(row.id,'approve')} className="rounded-lg bg-emerald-700 px-3 py-2 text-xs font-bold text-white disabled:opacity-50">Approve</button><button disabled={payoutBusy} onClick={() => reviewPayout(row.id,'reject')} className="rounded-lg border border-rose-200 px-3 py-2 text-xs font-bold text-rose-700 disabled:opacity-50">Reject</button></>}{['approved','processing'].includes(row.status) && <button disabled={payoutBusy} onClick={() => confirmPayoutPaid(row.id)} className="rounded-lg bg-[#142747] px-3 py-2 text-xs font-bold text-white disabled:opacity-50">Mark paid</button>}</div></div></article>)}</div>
+          {payoutRows.some(row => ['approved','processing'].includes(row.status)) && <div className="mt-4 flex flex-wrap gap-3"><input value={paymentReference} onChange={e => setPaymentReference(e.target.value)} placeholder="External payment / transaction reference" className="min-w-[260px] flex-1 rounded-lg border border-slate-200 px-3 py-2 text-sm" /><p className="self-center text-xs text-slate-500">Enter reference, then click Mark paid on the approved request.</p></div>}
+          {!payoutRows.length && !payoutBusy && <p className="py-3 text-sm text-slate-500">No withdrawal requests found.</p>}
+        </section>}
         <div className="grid grid-cols-1 gap-5 xl:grid-cols-3"><section className="rounded-2xl border border-slate-200/80 bg-white p-6 shadow-[0_3px_16px_rgba(18,39,71,.045)] xl:col-span-2"><div className="flex items-center justify-between"><div><h2 className="text-sm font-bold text-[#142747]">Performance summary</h2><p className="mt-1 text-xs text-slate-500">Key platform indicators for your access level</p></div><span className="rounded-lg bg-[#f8f2e4] px-3 py-1.5 text-[10px] font-bold text-[#98701b]">OVERVIEW</span></div><div className="mt-7 grid grid-cols-1 gap-3 sm:grid-cols-2">{metrics.slice(0,4).map((m,i)=>{const Icon=m.icon;return <div key={m.label} className="flex items-center gap-3 rounded-xl border border-slate-100 bg-slate-50/80 p-4"><span className="rounded-lg bg-white p-2 text-[#a77e24] shadow-sm"><Icon size={17}/></span><div className="min-w-0"><p className="truncate text-[11px] text-slate-500">{m.label}</p><p className="mt-1 text-sm font-bold text-[#142747]">{m.value}</p></div></div>;})}</div><div className="mt-5 rounded-xl border border-dashed border-slate-200 p-4 text-center text-xs text-slate-400">Charts will appear when the platform reporting endpoints provide dated trend data.</div></section>
         <section className="rounded-2xl border border-slate-200/80 bg-white p-6 shadow-[0_3px_16px_rgba(18,39,71,.045)]"><div className="flex items-center gap-2"><ShieldCheck size={18} className="text-[#b18a32]"/><h2 className="text-sm font-bold text-[#142747]">Access & security</h2></div><div className="mt-5 space-y-4"><div><p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Signed-in role</p><p className="mt-1 text-sm font-semibold capitalize text-slate-700">{role.replace('_',' ')}</p></div><div><p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Data source</p><p className="mt-1 text-sm font-semibold text-slate-700">MySQL platform API</p></div><div><p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Commission policy</p><p className="mt-1 text-sm font-semibold text-slate-700">10% default rate · Super Admin controlled</p></div><div className="rounded-xl bg-[#f8f2e4] p-3 text-[11px] leading-5 text-[#765719]">Your dashboard displays information permitted for your account role.</div></div></section></div>
         <footer className="mt-8 flex flex-col justify-between gap-2 border-t border-slate-200 pt-5 text-[10px] text-slate-400 sm:flex-row"><span>© 2026 SAFI SALI COMPANIES. All rights reserved.</span><span>Secure Enterprise Affiliate Platform</span></footer>
