@@ -17,7 +17,7 @@ test('live MySQL migrations create the complete affiliate platform schema', { sk
   const db = await mysql.createConnection(connectionOptions);
   try {
     const [versionRows] = await db.query('SELECT VERSION() AS version, DATABASE() AS databaseName');
-    assert.match(versionRows[0].version, /^8\\./, 'CI integration target must be MySQL 8.x');
+    assert.match(versionRows[0].version, /^8\./, 'CI integration target must be MySQL 8.x');
 
     const expectedTables = [
       'schema_migrations', 'businesses', 'users', 'affiliate_profiles',
